@@ -14,6 +14,8 @@ import base64
 from io import BytesIO
 from wordcloud import WordCloud
 import numpy as np
+import re
+from collections import Counter
 
 # Set style for matplotlib
 plt.style.use('default')
@@ -82,6 +84,247 @@ def load_wordcloud_images():
         pass
     
     return wordcloud_images
+
+# Simple lexicon-based sentiment analysis for testing
+def simple_lexicon_sentiment(text):
+    """
+    Simple lexicon-based sentiment analysis
+    Returns sentiment prediction and confidence score
+    """
+    # Simple Indonesian sentiment lexicon
+    positive_words = [
+        'bagus', 'baik', 'suka', 'mantap', 'keren', 'hebat', 'luar biasa', 
+        'sempurna', 'excellent', 'amazing', 'love', 'like', 'good', 'great',
+        'senang', 'puas', 'recommended', 'top', 'terbaik', 'oke', 'ok'
+    ]
+    
+    negative_words = [
+        'buruk', 'jelek', 'tidak suka', 'gak suka', 'benci', 'hate', 'bad',
+        'terrible', 'awful', 'worst', 'lemot', 'lag', 'bug', 'error',
+        'susah', 'sulit', 'ribet', 'mahal', 'lambat', 'payah', 'kecewa'
+    ]
+    
+    neutral_words = [
+        'biasa', 'standar', 'lumayan', 'cukup', 'bisa', 'mungkin',
+        'sepertinya', 'kayaknya', 'gimana', 'bagaimana', 'tolong', 'help'
+    ]
+    
+    # Convert to lowercase for analysis
+    text_lower = text.lower()
+    
+    # Count sentiment words
+    pos_count = sum(1 for word in positive_words if word in text_lower)
+    neg_count = sum(1 for word in negative_words if word in text_lower)
+    neu_count = sum(1 for word in neutral_words if word in text_lower)
+    
+    # Determine sentiment
+    total_sentiment_words = pos_count + neg_count + neu_count
+    
+    if total_sentiment_words == 0:
+        return "Netral", 0.5, {"positif": 0, "negatif": 0, "netral": 0}
+    
+    pos_score = pos_count / total_sentiment_words
+    neg_score = neg_count / total_sentiment_words
+    neu_score = neu_count / total_sentiment_words
+    
+    scores = {"positif": pos_score, "negatif": neg_score, "netral": neu_score}
+    
+    if pos_score > neg_score and pos_score > neu_score:
+        return "Positif", pos_score, scores
+    elif neg_score > pos_score and neg_score > neu_score:
+        return "Negatif", neg_score, scores
+    else:
+        return "Netral", neu_score, scores
+
+def preprocess_text_simple(text):
+    """
+    Simple text preprocessing for sentiment analysis
+    """
+    # Convert to lowercase
+    text = text.lower()
+    
+    # Remove special characters and numbers
+    text = re.sub(r'[^a-zA-Z\s]', '', text)
+    
+    # Remove extra whitespace
+    text = ' '.join(text.split())
+    
+    return text
+
+def interactive_sentiment_test():
+    """
+    Interactive sentiment testing interface for Streamlit
+    """
+    st.markdown("---")
+    st.subheader("🧪 Testing Sentimen Interaktif")
+    st.markdown("""
+    **Fitur ini memungkinkan Anda untuk menguji sentimen dari teks yang Anda masukkan sendiri.**
+    Masukkan teks dalam bahasa Indonesia, lalu klik tombol 'Analisis Sentimen' untuk melihat hasilnya.
+    """)
+    
+    # Create two columns for better layout
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        # Text input area
+        user_input = st.text_area(
+            "📝 Masukkan teks yang ingin dianalisis:",
+            placeholder="Contoh: Discord adalah aplikasi yang sangat bagus untuk chatting dengan teman-teman...",
+            height=150,
+            help="Masukkan teks dalam bahasa Indonesia atau Inggris"
+        )
+        
+        # Analysis button
+        analyze_button = st.button("🔍 Analisis Sentimen", type="primary")
+    
+    with col2:
+        # Quick test examples
+        st.markdown("**💡 Contoh Teks untuk Dicoba:**")
+        
+        examples = [
+            "Discord aplikasi yang sangat bagus dan mudah digunakan!",
+            "Aplikasi ini sering lag dan banyak bug, sangat mengecewakan",
+            "Biasa saja sih, lumayan untuk chatting tapi bisa lebih baik"
+        ]
+        
+        for i, example in enumerate(examples):
+            if st.button(f"📋 Contoh {i+1}", key=f"example_{i}"):
+                st.session_state.example_text = example
+    
+    # Use example text if selected
+    if 'example_text' in st.session_state:
+        user_input = st.session_state.example_text
+        st.text_area("📝 Teks terpilih:", value=user_input, height=100, disabled=True)
+        analyze_button = True  # Auto-analyze when example is selected
+        del st.session_state.example_text
+    
+    # Perform analysis when button is clicked
+    if analyze_button and user_input.strip():
+        with st.spinner("🔄 Menganalisis sentimen..."):
+            # Preprocess the text
+            processed_text = preprocess_text_simple(user_input)
+            
+            # Perform sentiment analysis
+            sentiment, confidence, detailed_scores = simple_lexicon_sentiment(user_input)
+            
+            # Display results
+            st.markdown("---")
+            st.subheader("📊 Hasil Analisis Sentimen")
+            
+            # Create three columns for results
+            result_col1, result_col2, result_col3 = st.columns(3)
+            
+            with result_col1:
+                # Main sentiment result
+                sentiment_color = {
+                    'Positif': '#4CAF50',
+                    'Negatif': '#f44336', 
+                    'Netral': '#FF9800'
+                }
+                
+                st.markdown(
+                    f"""
+                    <div style="text-align: center; padding: 1.5rem; background: {sentiment_color[sentiment]}; 
+                    border-radius: 15px; color: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                        <h2 style="color: white; margin: 0;">🎯 {sentiment}</h2>
+                        <p style="color: white; margin: 0; font-size: 18px;">Tingkat Keyakinan: {confidence:.1%}</p>
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
+            
+            with result_col2:
+                # Detailed scores
+                st.markdown("**📈 Skor Detail:**")
+                for sent_type, score in detailed_scores.items():
+                    st.write(f"• {sent_type.title()}: {score:.1%}")
+                
+                st.markdown(f"**📝 Teks Diproses:**")
+                st.write(f"'{processed_text[:50]}...' " if len(processed_text) > 50 else f"'{processed_text}'")
+            
+            with result_col3:
+                # Confidence meter visualization
+                fig_gauge = go.Figure(go.Indicator(
+                    mode = "gauge+number",
+                    value = confidence * 100,
+                    domain = {'x': [0, 1], 'y': [0, 1]},
+                    title = {'text': "Confidence"},
+                    gauge = {
+                        'axis': {'range': [None, 100]},
+                        'bar': {'color': sentiment_color[sentiment]},
+                        'steps': [
+                            {'range': [0, 50], 'color': "lightgray"},
+                            {'range': [50, 100], 'color': "gray"}
+                        ],
+                        'threshold': {
+                            'line': {'color': "red", 'width': 4},
+                            'thickness': 0.75,
+                            'value': 90
+                        }
+                    }
+                ))
+                
+                fig_gauge.update_layout(
+                    height=250,
+                    font={'color': 'black', 'size': 12},
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)'
+                )
+                
+                st.plotly_chart(fig_gauge, use_container_width=True)
+            
+            # Additional analysis information
+            st.markdown("---")
+            st.subheader("ℹ️ Informasi Tambahan")
+            
+            info_col1, info_col2 = st.columns(2)
+            
+            with info_col1:
+                st.markdown("**🔍 Detail Analisis:**")
+                st.write(f"• Panjang teks: {len(user_input)} karakter")
+                st.write(f"• Jumlah kata: {len(user_input.split())} kata")
+                st.write(f"• Sentimen terdeteksi: {sentiment}")
+                st.write(f"• Metode: Lexicon-based Analysis")
+            
+            with info_col2:
+                st.markdown("**💡 Penjelasan Hasil:**")
+                if sentiment == "Positif":
+                    st.success("✅ Teks mengandung lebih banyak kata-kata positif")
+                elif sentiment == "Negatif":
+                    st.error("❌ Teks mengandung lebih banyak kata-kata negatif")
+                else:
+                    st.info("ℹ️ Teks bersifat netral atau tidak mengandung indikator sentimen yang kuat")
+                
+                st.write(f"Tingkat keyakinan {confidence:.1%} menunjukkan " + 
+                        ("hasil yang cukup dapat diandalkan" if confidence > 0.6 else "hasil yang perlu dikonfirmasi lebih lanjut"))
+    
+    elif analyze_button and not user_input.strip():
+        st.warning("⚠️ Silakan masukkan teks yang ingin dianalisis terlebih dahulu!")
+    
+    # Instructions and tips
+    if not analyze_button:
+        st.markdown("---")
+        st.subheader("📖 Cara Menggunakan")
+        
+        tips_col1, tips_col2 = st.columns(2)
+        
+        with tips_col1:
+            st.markdown("""
+            **🎯 Langkah-langkah:**
+            1. Ketik atau paste teks yang ingin dianalisis
+            2. Atau pilih salah satu contoh teks
+            3. Klik tombol 'Analisis Sentimen'
+            4. Lihat hasil analisis dan interpretasinya
+            """)
+        
+        with tips_col2:
+            st.markdown("""
+            **💡 Tips untuk hasil terbaik:**
+            • Gunakan kalimat lengkap dan jelas
+            • Teks dalam bahasa Indonesia atau Inggris
+            • Hindari terlalu banyak singkatan
+            • Semakin panjang teks, semakin akurat hasilnya
+            """)
 
 # Konfigurasi Full Page
 st.set_page_config(
@@ -407,7 +650,7 @@ elif selected == "Profil":
                 <p style="color: #34495e; font-size: 20px; line-height: 2; margin-bottom: 15px;"><span style="color: #2c3e50; font-size: 20px; font-weight: 700;">Program:</span> Analisis Sentimen Discord</p>
                 <p style="color: #34495e; font-size: 20px; line-height: 2; margin-bottom: 15px;"><span style="color: #2c3e50; font-size: 20px; font-weight: 700;">Metode:</span> Naive Bayes Classifier</p>
                 <p style="color: #34495e; font-size: 20px; line-height: 2; margin-bottom: 15px;"><span style="color: #2c3e50; font-size: 20px; font-weight: 700;">Teknologi:</span> Python, Streamlit, Plotly</p>
-                <p style="color: #34495e; font-size: 20px; line-height: 2; margin-bottom: 15px;"><span style="color: #2c3e50; font-size: 20px; font-weight: 700;">Tanggal:</span> 7/3/2025</p>
+                <p style="color: #34495e; font-size: 20px; line-height: 2; margin-bottom: 15px;"><span style="color: #2c3e50; font-size: 20px; font-weight: 700;">Tanggal:</span> 7/3/2025, 10:35:00 AM</p>
             </div>
             """, 
             unsafe_allow_html=True
@@ -607,6 +850,7 @@ elif selected == "Chart":
             st.metric("Std Deviasi", f"{data['score'].std():.3f}")
     else:
         st.error("Kolom 'Label' atau 'score' tidak ditemukan dalam data")
+
 # ===================== Word Cloud =====================
 elif selected == "Word Cloud":
     st.title("☁️ Word Cloud Analisis Sentimen")
@@ -823,7 +1067,7 @@ elif selected == "Word Cloud":
     else:
         st.error("Kolom 'Label' tidak ditemukan dalam data")
 
-    # ===================== Distribusi Sentimen =====================
+# ===================== Distribusi Sentimen =====================
 elif selected == "Distribusi":
     st.title("📊 Distribusi Data Sentimen")
     
@@ -879,6 +1123,9 @@ elif selected == "Distribusi":
         with col2:
             st.info(f"**Persentase Tertinggi**: {sentiment_counts.values[0]/sentiment_counts.sum()*100:.1f}%")
             st.info(f"**Rasio Pos:Neg**: {sentiment_counts.get('Positif', 0)} : {sentiment_counts.get('Negatif', 0)}")
+        
+        # Add Interactive Sentiment Testing Feature
+        interactive_sentiment_test()
+        
     else:
         st.error("Kolom 'Label' tidak ditemukan dalam data")
-
