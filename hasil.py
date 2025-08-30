@@ -306,12 +306,9 @@ def interactive_sentiment_test_nb():
     
 # Display model information
     col_info1, col_info2 = st.columns(2)
-  with col_info1:
-        if model_accuracy:
-            if model_accuracy is not None:
-                st.info(f"Model Accuracy: {model_accuracy:.2%}")
-            else:
-                st.info("Model Accuracy: Not available")
+    with col_info1:
+        if model_accuracy is not None:
+            st.info(f"Model Accuracy: {model_accuracy:.2%}")
         else:
             st.info("Model loaded successfully")
     with col_info2:
@@ -1399,6 +1396,7 @@ elif selected == "Distribusi":
         
     else:
         st.error("Kolom 'Label' tidak ditemukan dalam data")
+
 
 
 
