@@ -476,12 +476,12 @@ def interactive_sentiment_test_nb():
                 st.markdown("**🔍 Detail Analisis:**")
                 st.write(f"• Panjang teks: {len(user_input)} karakter")
                 st.write(f"• Jumlah kata: {len(user_input.split())} kata")
-                st.write(f"• Sentimen prediksi: {sentiment}")
+               st.write(f"• Sentimen prediksi: {sentiment}")
                 st.write(f"• Metode: Naive Bayes + TF-IDF")
-     if model_accuracy:
-    st.write(f"• Model accuracy: {model_accuracy:.2%}")
-else:
-    st.write("• Model: Loaded successfully")
+                if model_accuracy:
+                    st.write(f"• Model accuracy: {model_accuracy:.2%}")
+                else:
+                    st.write("• Model: Loaded successfully")
             
             with info_col2:
                 st.markdown("**💡 Interpretasi Hasil:**")
@@ -1395,6 +1395,7 @@ elif selected == "Distribusi":
         
     else:
         st.error("Kolom 'Label' tidak ditemukan dalam data")
+
 
 
 
