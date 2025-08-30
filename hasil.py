@@ -85,81 +85,235 @@ def load_wordcloud_images():
     
     return wordcloud_images
 
-# Simple lexicon-based sentiment analysis for testing
-def simple_lexicon_sentiment(text):
-    """
-    Simple lexicon-based sentiment analysis
-    Returns sentiment prediction and confidence score
-    """
-    # Simple Indonesian sentiment lexicon
-    positive_words = [
-        'bagus', 'baik', 'suka', 'mantap', 'keren', 'hebat', 'luar biasa', 
-        'sempurna', 'excellent', 'amazing', 'love', 'like', 'good', 'great',
-        'senang', 'puas', 'recommended', 'top', 'terbaik', 'oke', 'ok'
-    ]
-    
-    negative_words = [
-        'buruk', 'jelek', 'tidak suka', 'gak suka', 'benci', 'hate', 'bad',
-        'terrible', 'awful', 'worst', 'lemot', 'lag', 'bug', 'error',
-        'susah', 'sulit', 'ribet', 'mahal', 'lambat', 'payah', 'kecewa'
-    ]
-    
-    neutral_words = [
-        'biasa', 'standar', 'lumayan', 'cukup', 'bisa', 'mungkin',
-        'sepertinya', 'kayaknya', 'gimana', 'bagaimana', 'tolong', 'help'
-    ]
-    
-    # Convert to lowercase for analysis
-    text_lower = text.lower()
-    
-    # Count sentiment words
-    pos_count = sum(1 for word in positive_words if word in text_lower)
-    neg_count = sum(1 for word in negative_words if word in text_lower)
-    neu_count = sum(1 for word in neutral_words if word in text_lower)
-    
-    # Determine sentiment
-    total_sentiment_words = pos_count + neg_count + neu_count
-    
-    if total_sentiment_words == 0:
-        return "Netral", 0.5, {"positif": 0, "negatif": 0, "netral": 0}
-    
-    pos_score = pos_count / total_sentiment_words
-    neg_score = neg_count / total_sentiment_words
-    neu_score = neu_count / total_sentiment_words
-    
-    scores = {"positif": pos_score, "negatif": neg_score, "netral": neu_score}
-    
-    if pos_score > neg_score and pos_score > neu_score:
-        return "Positif", pos_score, scores
-    elif neg_score > pos_score and neg_score > neu_score:
-        return "Negatif", neg_score, scores
-    else:
-        return "Netral", neu_score, scores
 
-def preprocess_text_simple(text):
+# Machine Learning imports
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+import joblib
+import os
+
+# Set style for matplotlib
+plt.style.use('default')
+sns.set_palette("husl")
+
+# Global variables for model
+trained_model = None
+model_accuracy = None
+
+# Load Data with error handling
+@st.cache_data
+def load_data():
+    try:
+        data = pd.read_csv('discordepreprocessing.csv')
+        text_processed = pd.read_csv('hasil_TextPreProcessing_discord.csv')
+        return data, text_processed
+    except FileNotFoundError as e:
+        st.error(f"File tidak ditemukan: {e}")
+        # Create sample data for demo
+        sample_data = pd.DataFrame({
+            'content': ['Aplikasi bagus sekali', 'Tidak suka aplikasi ini', 'Biasa saja'],
+            'Label': ['Positif', 'Negatif', 'Netral'],
+            'score': [0.8, 0.2, 0.5]
+        })
+        return sample_data, sample_data
+
+# Train Naive Bayes Model
+@st.cache_resource
+def train_naive_bayes_model():
     """
-    Simple text preprocessing for sentiment analysis
+    Train Naive Bayes classifier using the preprocessed training data
+    """
+    try:
+        # Load training data
+        training_data = pd.read_csv('hasil_TextPreProcessing_discord.csv')
+        
+        # Check if required columns exist
+        if 'text_clean' not in training_data.columns or 'Label' not in training_data.columns:
+            st.error("Required columns 'text_clean' or 'Label' not found in training data")
+            return None, None
+        
+        # Remove rows with NaN values
+        training_data = training_data.dropna(subset=['text_clean', 'Label'])
+        
+        # Prepare features and labels
+        X = training_data['text_clean'].astype(str)
+        y = training_data['Label']
+        
+        # Split data for evaluation
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42, stratify=y
+        )
+        
+        # Create pipeline with TF-IDF and Naive Bayes
+        pipeline = Pipeline([
+            ('tfidf', TfidfVectorizer(
+                max_features=5000,
+                ngram_range=(1, 2),
+                stop_words=None,  # We already removed stop words in preprocessing
+                lowercase=True,
+                min_df=2,
+                max_df=0.95
+            )),
+            ('classifier', MultinomialNB(alpha=1.0))
+        ])
+        
+        # Train the model
+        pipeline.fit(X_train, y_train)
+        
+        # Evaluate model
+        y_pred = pipeline.predict(X_test)
+        accuracy = accuracy_score(y_test, y_pred)
+        
+        # Save model
+        joblib.dump(pipeline, 'naive_bayes_sentiment_model.pkl')
+        
+        return pipeline, accuracy
+        
+    except FileNotFoundError:
+        st.error("Training data file 'hasil_TextPreProcessing_discord.csv' not found")
+        return None, None
+    except Exception as e:
+        st.error(f"Error training model: {str(e)}")
+        return None, None
+
+# Load or train model
+def get_trained_model():
+    """
+    Load existing model or train new one
+    """
+    model_file = 'naive_bayes_sentiment_model.pkl'
+    
+    if os.path.exists(model_file):
+        try:
+            model = joblib.load(model_file)
+            return model, "Model loaded from file"
+        except Exception as e:
+            st.warning(f"Error loading saved model: {e}. Training new model...")
+    
+    return train_naive_bayes_model()
+
+# Advanced text preprocessing for prediction
+def advanced_preprocess_text(text):
+    """
+    Advanced text preprocessing similar to training data preprocessing
     """
     # Convert to lowercase
     text = text.lower()
     
-    # Remove special characters and numbers
+    # Remove URLs
+    text = re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE)
+    
+    # Remove user mentions and hashtags
+    text = re.sub(r'@\w+|#\w+', '', text)
+    
+    # Remove special characters but keep spaces
     text = re.sub(r'[^a-zA-Z\s]', '', text)
     
     # Remove extra whitespace
     text = ' '.join(text.split())
     
+    # Remove very short words (less than 3 characters)
+    words = text.split()
+    words = [word for word in words if len(word) >= 3]
+    text = ' '.join(words)
+    
     return text
 
-def interactive_sentiment_test():
+# Naive Bayes prediction function
+def predict_sentiment_naive_bayes(text, model):
     """
-    Interactive sentiment testing interface for Streamlit
+    Predict sentiment using trained Naive Bayes model
     """
+    try:
+        # Preprocess text
+        processed_text = advanced_preprocess_text(text)
+        
+        if not processed_text.strip():
+            return "Netral", 0.5, {"Positif": 0.33, "Negatif": 0.33, "Netral": 0.34}
+        
+        # Get prediction
+        prediction = model.predict([processed_text])[0]
+        
+        # Get prediction probabilities
+        probabilities = model.predict_proba([processed_text])[0]
+        
+        # Get class labels
+        classes = model.classes_
+        
+        # Create probability dictionary
+        prob_dict = {classes[i]: prob for i, prob in enumerate(probabilities)}
+        
+        # Get confidence (probability of predicted class)
+        confidence = max(probabilities)
+        
+        return prediction, confidence, prob_dict
+        
+    except Exception as e:
+        st.error(f"Error in prediction: {str(e)}")
+        return "Netral", 0.5, {"Positif": 0.33, "Negatif": 0.33, "Netral": 0.34}
+
+# Function to load and encode image
+def load_profile_image():
+    try:
+        image = Image.open('Pas Foto.jpg')
+        return image
+    except FileNotFoundError:
+        return None
+
+# Function to generate word cloud
+def generate_wordcloud(text, sentiment_type):
+    """Generate word cloud for given text"""
+    if sentiment_type == 'Positif':
+        colormap = 'Greens'
+    elif sentiment_type == 'Negatif':
+        colormap = 'Reds'
+    else:  # Netral
+        colormap = 'Blues'
+    
+    wordcloud = WordCloud(
+        width=800, 
+        height=400,
+        background_color='white',
+        colormap=colormap,
+        max_words=100,
+        relative_scaling=0.5,
+        random_state=42
+    ).generate(text)
+    
+    return wordcloud
+
+# Interactive sentiment testing with Naive Bayes
+def interactive_sentiment_test_nb():
+    """
+    Interactive sentiment testing interface using Naive Bayes classifier
+    """
+    global trained_model, model_accuracy
+    
     st.markdown("---")
-    st.subheader("🧪 Testing Sentimen Interaktif")
+    st.subheader("🤖 Testing Sentimen dengan Naive Bayes Classifier")
+    
+    # Load or train model if not already done
+    if trained_model is None:
+        with st.spinner("Loading/Training Naive Bayes model..."):
+            trained_model, model_accuracy = get_trained_model()
+    
+    if trained_model is None:
+        st.error("Failed to load or train the Naive Bayes model. Please check your training data.")
+        return
+    
+    # Display model information
+    col_info1, col_info2 = st.columns(2)
+    with col_info1:
+        st.info(f"🎯 Model Accuracy: {model_accuracy:.2%}" if model_accuracy else "Model loaded successfully")
+    with col_info2:
+        st.info(f"📚 Algorithm: Multinomial Naive Bayes + TF-IDF")
+    
     st.markdown("""
-    **Fitur ini memungkinkan Anda untuk menguji sentimen dari teks yang Anda masukkan sendiri.**
-    Masukkan teks dalam bahasa Indonesia, lalu klik tombol 'Analisis Sentimen' untuk melihat hasilnya.
+    **Fitur ini menggunakan algoritma Naive Bayes Classifier yang telah ditraining dengan data preprocessed Anda.**
+    Model ini menggunakan TF-IDF vectorization dan telah dioptimasi untuk analisis sentimen bahasa Indonesia.
     """)
     
     # Create two columns for better layout
@@ -171,11 +325,11 @@ def interactive_sentiment_test():
             "📝 Masukkan teks yang ingin dianalisis:",
             placeholder="Contoh: Discord adalah aplikasi yang sangat bagus untuk chatting dengan teman-teman...",
             height=150,
-            help="Masukkan teks dalam bahasa Indonesia atau Inggris"
+            help="Masukkan teks dalam bahasa Indonesia"
         )
         
         # Analysis button
-        analyze_button = st.button("🔍 Analisis Sentimen", type="primary")
+        analyze_button = st.button("🔍 Analisis dengan Naive Bayes", type="primary")
     
     with col2:
         # Quick test examples
@@ -184,32 +338,31 @@ def interactive_sentiment_test():
         examples = [
             "Discord aplikasi yang sangat bagus dan mudah digunakan!",
             "Aplikasi ini sering lag dan banyak bug, sangat mengecewakan",
-            "Biasa saja sih, lumayan untuk chatting tapi bisa lebih baik"
+            "Biasa saja sih, lumayan untuk chatting tapi bisa lebih baik",
+            "Voice chat nya jernih banget, recommended!",
+            "Susah login terus, capek deh pake aplikasi ini"
         ]
         
         for i, example in enumerate(examples):
-            if st.button(f"📋 Contoh {i+1}", key=f"example_{i}"):
-                st.session_state.example_text = example
+            if st.button(f"📋 Contoh {i+1}", key=f"nb_example_{i}"):
+                st.session_state.nb_example_text = example
     
     # Use example text if selected
-    if 'example_text' in st.session_state:
-        user_input = st.session_state.example_text
+    if 'nb_example_text' in st.session_state:
+        user_input = st.session_state.nb_example_text
         st.text_area("📝 Teks terpilih:", value=user_input, height=100, disabled=True)
         analyze_button = True  # Auto-analyze when example is selected
-        del st.session_state.example_text
+        del st.session_state.nb_example_text
     
     # Perform analysis when button is clicked
     if analyze_button and user_input.strip():
-        with st.spinner("🔄 Menganalisis sentimen..."):
-            # Preprocess the text
-            processed_text = preprocess_text_simple(user_input)
-            
-            # Perform sentiment analysis
-            sentiment, confidence, detailed_scores = simple_lexicon_sentiment(user_input)
+        with st.spinner("🔄 Menganalisis sentimen dengan Naive Bayes..."):
+            # Perform sentiment analysis using Naive Bayes
+            sentiment, confidence, detailed_scores = predict_sentiment_naive_bayes(user_input, trained_model)
             
             # Display results
             st.markdown("---")
-            st.subheader("📊 Hasil Analisis Sentimen")
+            st.subheader("📊 Hasil Analisis Sentimen (Naive Bayes)")
             
             # Create three columns for results
             result_col1, result_col2, result_col3 = st.columns(3)
@@ -224,10 +377,10 @@ def interactive_sentiment_test():
                 
                 st.markdown(
                     f"""
-                    <div style="text-align: center; padding: 1.5rem; background: {sentiment_color[sentiment]}; 
+                    <div style="text-align: center; padding: 1.5rem; background: {sentiment_color.get(sentiment, '#FF9800')}; 
                     border-radius: 15px; color: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
                         <h2 style="color: white; margin: 0;">🎯 {sentiment}</h2>
-                        <p style="color: white; margin: 0; font-size: 18px;">Tingkat Keyakinan: {confidence:.1%}</p>
+                        <p style="color: white; margin: 0; font-size: 18px;">Confidence: {confidence:.1%}</p>
                     </div>
                     """, 
                     unsafe_allow_html=True
@@ -235,11 +388,12 @@ def interactive_sentiment_test():
             
             with result_col2:
                 # Detailed scores
-                st.markdown("**📈 Skor Detail:**")
+                st.markdown("**📈 Probabilitas Detail:**")
                 for sent_type, score in detailed_scores.items():
-                    st.write(f"• {sent_type.title()}: {score:.1%}")
+                    st.write(f"• {sent_type}: {score:.1%}")
                 
-                st.markdown(f"**📝 Teks Diproses:**")
+                st.markdown(f"**🔧 Text Preprocessing:**")
+                processed_text = advanced_preprocess_text(user_input)
                 st.write(f"'{processed_text[:50]}...' " if len(processed_text) > 50 else f"'{processed_text}'")
             
             with result_col3:
@@ -251,7 +405,7 @@ def interactive_sentiment_test():
                     title = {'text': "Confidence"},
                     gauge = {
                         'axis': {'range': [None, 100]},
-                        'bar': {'color': sentiment_color[sentiment]},
+                        'bar': {'color': sentiment_color.get(sentiment, '#FF9800')},
                         'steps': [
                             {'range': [0, 50], 'color': "lightgray"},
                             {'range': [50, 100], 'color': "gray"}
@@ -273,6 +427,42 @@ def interactive_sentiment_test():
                 
                 st.plotly_chart(fig_gauge, use_container_width=True)
             
+            # Probability distribution chart
+            st.markdown("---")
+            st.subheader("📊 Distribusi Probabilitas")
+            
+            # Create bar chart for probabilities
+            prob_df = pd.DataFrame({
+                'Sentimen': list(detailed_scores.keys()),
+                'Probabilitas': list(detailed_scores.values())
+            })
+            
+            fig_prob = px.bar(
+                prob_df, 
+                x='Sentimen', 
+                y='Probabilitas',
+                color='Sentimen',
+                color_discrete_map={
+                    'Positif': '#4CAF50',
+                    'Negatif': '#f44336',
+                    'Netral': '#FF9800'
+                },
+                title="Distribusi Probabilitas Sentimen"
+            )
+            
+            fig_prob.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#2c3e50', size=12),
+                title_font=dict(size=16, color='#2c3e50'),
+                xaxis_title="Kategori Sentimen",
+                yaxis_title="Probabilitas",
+                showlegend=False,
+                height=400
+            )
+            
+            st.plotly_chart(fig_prob, use_container_width=True)
+            
             # Additional analysis information
             st.markdown("---")
             st.subheader("ℹ️ Informasi Tambahan")
@@ -283,48 +473,118 @@ def interactive_sentiment_test():
                 st.markdown("**🔍 Detail Analisis:**")
                 st.write(f"• Panjang teks: {len(user_input)} karakter")
                 st.write(f"• Jumlah kata: {len(user_input.split())} kata")
-                st.write(f"• Sentimen terdeteksi: {sentiment}")
-                st.write(f"• Metode: Lexicon-based Analysis")
+                st.write(f"• Sentimen prediksi: {sentiment}")
+                st.write(f"• Metode: Naive Bayes + TF-IDF")
+                st.write(f"• Model accuracy: {model_accuracy:.2%}" if model_accuracy else "• Model: Loaded successfully")
             
             with info_col2:
-                st.markdown("**💡 Penjelasan Hasil:**")
+                st.markdown("**💡 Interpretasi Hasil:**")
                 if sentiment == "Positif":
-                    st.success("✅ Teks mengandung lebih banyak kata-kata positif")
+                    st.success("✅ Model mengklasifikasikan teks sebagai sentimen positif")
                 elif sentiment == "Negatif":
-                    st.error("❌ Teks mengandung lebih banyak kata-kata negatif")
+                    st.error("❌ Model mengklasifikasikan teks sebagai sentimen negatif")
                 else:
-                    st.info("ℹ️ Teks bersifat netral atau tidak mengandung indikator sentimen yang kuat")
+                    st.info("ℹ️ Model mengklasifikasikan teks sebagai sentimen netral")
                 
-                st.write(f"Tingkat keyakinan {confidence:.1%} menunjukkan " + 
-                        ("hasil yang cukup dapat diandalkan" if confidence > 0.6 else "hasil yang perlu dikonfirmasi lebih lanjut"))
+                confidence_interpretation = ""
+                if confidence > 0.8:
+                    confidence_interpretation = "sangat tinggi - hasil sangat dapat diandalkan"
+                elif confidence > 0.6:
+                    confidence_interpretation = "tinggi - hasil cukup dapat diandalkan"
+                elif confidence > 0.4:
+                    confidence_interpretation = "sedang - hasil perlu diverifikasi"
+                else:
+                    confidence_interpretation = "rendah - hasil tidak dapat diandalkan"
+                
+                st.write(f"Confidence {confidence:.1%} menunjukkan tingkat keyakinan {confidence_interpretation}")
     
     elif analyze_button and not user_input.strip():
         st.warning("⚠️ Silakan masukkan teks yang ingin dianalisis terlebih dahulu!")
+
+# Model evaluation and info section
+def show_model_info():
+    """
+    Show detailed information about the trained model
+    """
+    global trained_model, model_accuracy
+    
+    st.markdown("---")
+    st.subheader("🔬 Informasi Model")
+    
+    if trained_model is None:
+        with st.spinner("Loading model information..."):
+            trained_model, model_accuracy = get_trained_model()
+    
+    if trained_model is not None:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**🎯 Spesifikasi Model:**")
+            st.write("• Algorithm: Multinomial Naive Bayes")
+            st.write("• Vectorizer: TF-IDF")
+            st.write("• Max Features: 5000")
+            st.write("• N-gram Range: (1, 2)")
+            st.write("• Alpha (Smoothing): 1.0")
+            if model_accuracy:
+                st.write(f"• Test Accuracy: {model_accuracy:.2%}")
+        
+        with col2:
+            st.markdown("**📊 Preprocessing Steps:**")
+            st.write("• Lowercasing")
+            st.write("• URL removal")
+            st.write("• Special character removal")
+            st.write("• Stop word removal (in training)")
+            st.write("• Tokenization")
+            st.write("• Stemming (in training data)")
+        
+        # Try to load and show training data info
+        try:
+            training_data = pd.read_csv('hasil_TextPreProcessing_discord.csv')
+            st.markdown("**📈 Training Data Info:**")
+            col_info1, col_info2, col_info3 = st.columns(3)
+            
+            with col_info1:
+                st.metric("Total Samples", len(training_data))
+            
+            with col_info2:
+                if 'Label' in training_data.columns:
+                    unique_labels = training_data['Label'].nunique()
+                    st.metric("Classes", unique_labels)
+            
+            with col_info3:
+                if 'text_clean' in training_data.columns:
+                    avg_length = training_data['text_clean'].astype(str).str.len().mean()
+                    st.metric("Avg Text Length", f"{avg_length:.0f}")
+                    
+        except Exception as e:
+            st.write(f"Cannot load training data info: {e}")
+    
+    else:
+        st.error("Model not available. Please check your training data file.")
     
     # Instructions and tips
-    if not analyze_button:
-        st.markdown("---")
-        st.subheader("📖 Cara Menggunakan")
-        
-        tips_col1, tips_col2 = st.columns(2)
-        
-        with tips_col1:
-            st.markdown("""
-            **🎯 Langkah-langkah:**
-            1. Ketik atau paste teks yang ingin dianalisis
-            2. Atau pilih salah satu contoh teks
-            3. Klik tombol 'Analisis Sentimen'
-            4. Lihat hasil analisis dan interpretasinya
-            """)
-        
-        with tips_col2:
-            st.markdown("""
-            **💡 Tips untuk hasil terbaik:**
-            • Gunakan kalimat lengkap dan jelas
-            • Teks dalam bahasa Indonesia atau Inggris
-            • Hindari terlalu banyak singkatan
-            • Semakin panjang teks, semakin akurat hasilnya
-            """)
+    st.markdown("---")
+    st.subheader("📖 Cara Menggunakan")
+    
+    tips_col1, tips_col2 = st.columns(2)
+    
+    with tips_col1:
+        st.markdown("""
+        **🎯 Langkah-langkah:**
+        1. Pastikan file 'hasil_TextPreProcessing_discord.csv' ada
+        2. Model akan otomatis ditraining pada penggunaan pertama
+        3. Gunakan fitur testing interaktif di halaman Distribusi
+        4. Model tersimpan dan akan dimuat ulang pada sesi berikutnya
+        """)
+    
+    with tips_col2:
+        st.markdown("""
+        **💡 Tips untuk hasil terbaik:**
+        • Pastikan data training memiliki kolom 'text_clean' dan 'Label'
+        • Data training harus berisi minimal 3 kelas sentimen
+        • Semakin banyak data training, semakin akurat prediksi
+        • Model akan otomatis diupdate jika data training berubah
+        """)
 
 # Konfigurasi Full Page
 st.set_page_config(
@@ -332,7 +592,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
 # ===================== Custom CSS with Purple Theme =====================
 st.markdown(
     """
@@ -1125,8 +1384,9 @@ elif selected == "Distribusi":
             st.info(f"**Rasio Pos:Neg**: {sentiment_counts.get('Positif', 0)} : {sentiment_counts.get('Negatif', 0)}")
         
         # Add Interactive Sentiment Testing Feature
-        interactive_sentiment_test()
+         interactive_sentiment_test_nb()
         
     else:
         st.error("Kolom 'Label' tidak ditemukan dalam data")
+
 
