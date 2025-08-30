@@ -482,8 +482,10 @@ def interactive_sentiment_test_nb():
                 st.write(f"• Jumlah kata: {len(user_input.split())} kata")
                 st.write(f"• Sentimen prediksi: {sentiment}")
                 st.write(f"• Metode: Naive Bayes + TF-IDF")
-            if model_accuracy is not None:
-    st.write(f"• Model accuracy: {model_accuracy:.2%}")
+         try:
+                    st.write(f"• Model accuracy: {model_accuracy:.2%}")
+                except (TypeError, ValueError):
+                    st.write("• Model: Loaded successfully")
 else:
     st.write("• Model: Loaded successfully")
             with info_col2:
@@ -1398,6 +1400,7 @@ elif selected == "Distribusi":
         
     else:
         st.error("Kolom 'Label' tidak ditemukan dalam data")
+
 
 
 
