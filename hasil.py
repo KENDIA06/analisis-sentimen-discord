@@ -306,10 +306,13 @@ def interactive_sentiment_test_nb():
     
     # Display model information
     col_info1, col_info2 = st.columns(2)
-    with col_info1:
-        st.info(f"🎯 Model Accuracy: {model_accuracy:.2%}" if model_accuracy else "Model loaded successfully")
-    with col_info2:
-        st.info(f"📚 Algorithm: Multinomial Naive Bayes + TF-IDF")
+  with col_info1:
+    if model_accuracy:
+        st.info(f"Model Accuracy: {model_accuracy:.2%}")
+    else:
+        st.info("Model loaded successfully")
+with col_info2:
+    st.info("Algorithm: Multinomial Naive Bayes + TF-IDF")
     
     st.markdown("""
     **Fitur ini menggunakan algoritma Naive Bayes Classifier yang telah ditraining dengan data preprocessed Anda.**
@@ -475,7 +478,10 @@ def interactive_sentiment_test_nb():
                 st.write(f"• Jumlah kata: {len(user_input.split())} kata")
                 st.write(f"• Sentimen prediksi: {sentiment}")
                 st.write(f"• Metode: Naive Bayes + TF-IDF")
-                st.write(f"• Model accuracy: {model_accuracy:.2%}" if model_accuracy else "• Model: Loaded successfully")
+                if model_accuracy:
+    st.write(f"• Model accuracy: {model_accuracy:.2%}")
+else:
+    st.write("• Model: Loaded successfully")
             
             with info_col2:
                 st.markdown("**💡 Interpretasi Hasil:**")
@@ -1389,6 +1395,7 @@ elif selected == "Distribusi":
         
     else:
         st.error("Kolom 'Label' tidak ditemukan dalam data")
+
 
 
 
