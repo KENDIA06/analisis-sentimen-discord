@@ -1385,9 +1385,10 @@ elif selected == "Distribusi":
             st.info(f"**Rasio Pos:Neg**: {sentiment_counts.get('Positif', 0)} : {sentiment_counts.get('Negatif', 0)}")
         
         # Add Interactive Sentiment Testing Feature
-        interactive_sentiment_test()
+        interactive_sentiment_test_nb()
         
     else:
         st.error("Kolom 'Label' tidak ditemukan dalam data")
+
 
 
