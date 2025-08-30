@@ -649,7 +649,7 @@ elif selected == "Profil":
                 <p style="color: #34495e; font-size: 20px; line-height: 2; margin-bottom: 15px;"><span style="color: #2c3e50; font-size: 20px; font-weight: 700;">NPM:</span> 10121641</p>
                 <p style="color: #34495e; font-size: 20px; line-height: 2; margin-bottom: 15px;"><span style="color: #2c3e50; font-size: 20px; font-weight: 700;">Program:</span> Analisis Sentimen Discord</p>
                 <p style="color: #34495e; font-size: 20px; line-height: 2; margin-bottom: 15px;"><span style="color: #2c3e50; font-size: 20px; font-weight: 700;">Metode:</span> Naive Bayes Classifier</p>
-                <p style="color: #34495e; font-size: 20px; line-height: 2; margin-bottom: 15px;"><span style="color: #2c3e50; font-size: 20px; font-weight: 700;">Teknologi:</span> Python, Streamlit, Plotly</p>
+                <p style="color: #34495e; font-size: 20px; line-height: 2; margin-bottom: 15px;"><span style="color: #2c3e50; font-size: 20px; font-weight: 700;">Teknologi:</span> Python, Streamlit</p>
                 <p style="color: #34495e; font-size: 20px; line-height: 2; margin-bottom: 15px;"><span style="color: #2c3e50; font-size: 20px; font-weight: 700;">Tanggal:</span> 7/3/2025, 10:35:00 AM</p>
             </div>
             """, 
@@ -1129,3 +1129,4 @@ elif selected == "Distribusi":
         
     else:
         st.error("Kolom 'Label' tidak ditemukan dalam data")
+
