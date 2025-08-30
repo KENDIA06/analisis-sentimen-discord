@@ -467,12 +467,13 @@ def interactive_sentiment_test_nb():
             st.plotly_chart(fig_prob, use_container_width=True)
             
             # Additional analysis information
+           # Additional analysis information
             st.markdown("---")
-            st.subheader("ℹ️ Informasi Tambahan")
+            st.subheader("Informasi Tambahan")
             
             info_col1, info_col2 = st.columns(2)
             
-           with info_col1:
+            with info_col1:
                 st.markdown("**Detail Analisis:**")
                 st.write(f"• Panjang teks: {len(user_input)} karakter")
                 st.write(f"• Jumlah kata: {len(user_input.split())} kata")
@@ -484,13 +485,13 @@ def interactive_sentiment_test_nb():
                     st.write("• Model: Loaded successfully")
             
             with info_col2:
-                st.markdown("**💡 Interpretasi Hasil:**")
+                st.markdown("**Interpretasi Hasil:**")
                 if sentiment == "Positif":
-                    st.success("✅ Model mengklasifikasikan teks sebagai sentimen positif")
+                    st.success("Model mengklasifikasikan teks sebagai sentimen positif")
                 elif sentiment == "Negatif":
-                    st.error("❌ Model mengklasifikasikan teks sebagai sentimen negatif")
+                    st.error("Model mengklasifikasikan teks sebagai sentimen negatif")
                 else:
-                    st.info("ℹ️ Model mengklasifikasikan teks sebagai sentimen netral")
+                    st.info("Model mengklasifikasikan teks sebagai sentimen netral")
                 
                 confidence_interpretation = ""
                 if confidence > 0.8:
@@ -1395,6 +1396,7 @@ elif selected == "Distribusi":
         
     else:
         st.error("Kolom 'Label' tidak ditemukan dalam data")
+
 
 
 
